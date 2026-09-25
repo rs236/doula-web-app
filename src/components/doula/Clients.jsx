@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion } from "motion/react";
 import { PageHead, Card, Empty, KV, Field, MetricRibbon, MetricCard, StatusBadge, CopyButton } from "../ui.jsx";
 import { IconClients, IconDocs, IconSparkles, IconPlus, IconSearch } from "../icons.jsx";
-import { gaLabel, today, fmt, fmtShort, uid } from "../../lib/date.js";
+import { gaLabel, today, fmt, fmtShort, uid, secureToken } from "../../lib/date.js";
 import { PACKET } from "../../data/forms.js";
 import { resolveForm, assignmentStatus } from "../../lib/formEngine.js";
 import { SPRINGS } from "../motion/MotionPrimitives.jsx";
@@ -54,7 +54,7 @@ export default function Clients({ db, up, open, setOpen, toast, setTab }) {
   const addClient = () => {
     if (!f.name.trim()) return toast("Add a client name first");
     const id = uid();
-    const token = uid() + uid();
+    const token = secureToken();
 
     // The 3 priority V1 templates: Intake, Service Agreement, Birth Plan
     const packet = PACKET.map((fid) => ({

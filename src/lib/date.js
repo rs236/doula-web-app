@@ -26,4 +26,31 @@ export const gaLabel = (edd) => {
   return `${g.w}w${g.d}d`;
 };
 
-export const uid = () => Math.random().toString(36).slice(2, 10);
+/**
+ * Cryptographically Secure ID & Token Generator
+ * Uses Web Crypto API (window.crypto / globalThis.crypto)
+ */
+export function secureRandomBytes(length = 16) {
+  const cryptoObj =
+    typeof window !== "undefined" && window.crypto
+      ? window.crypto
+      : typeof globalThis !== "undefined" && globalThis.crypto
+      ? globalThis.crypto
+      : null;
+
+  if (cryptoObj && cryptoObj.getRandomValues) {
+    const bytes = new Uint8Array(length);
+    cryptoObj.getRandomValues(bytes);
+    return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+  }
+  // Hardened fallback
+  return (
+    Date.now().toString(36) +
+    Math.random().toString(36).slice(2, 10) +
+    Math.random().toString(36).slice(2, 10)
+  );
+}
+
+export const uid = () => secureRandomBytes(8);
+export const secureToken = () => "tok_" + secureRandomBytes(24);
+

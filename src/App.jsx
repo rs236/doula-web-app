@@ -157,7 +157,7 @@ export default function App() {
     if (rawHash.startsWith("portal/")) {
       const token = rawHash.split("/")[1];
       const match = initialDb.clients.find(
-        (c) => c.access_token === token || c.accessToken === token || c.id === token
+        (c) => (c.access_token && c.access_token === token) || (c.accessToken && c.accessToken === token)
       );
       if (match) {
         setPortalClient(match.id);
@@ -219,7 +219,7 @@ export default function App() {
         const token = h.split("/")[1];
         if (db) {
           const match = db.clients.find(
-            (c) => c.access_token === token || c.accessToken === token || c.id === token
+            (c) => (c.access_token && c.access_token === token) || (c.accessToken && c.accessToken === token)
           );
           if (match) setPortalClient(match.id);
         }
@@ -227,14 +227,27 @@ export default function App() {
         setTab("p-home");
         return;
       }
-      if (h && h !== tab && (validTab("doula", h) || validTab("client", h))) {
-        setRole(validTab("client", h) ? "client" : "doula");
-        setTab(h);
+      if (h && h !== tab) {
+        if (validTab("client", h)) {
+          setRole("client");
+          setTab(h);
+        } else if (validTab("doula", h)) {
+          // Block unauthenticated clients from escalating into doula modules via URL hash
+          if (!session?.user && role === "client") {
+            window.location.hash = "/p-home";
+            setRole("client");
+            setTab("p-home");
+            setToast("Access restricted: Doula credentials required");
+            return;
+          }
+          setRole("doula");
+          setTab(h);
+        }
       }
     };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
-  }, [tab, db]);
+  }, [tab, db, session, role]);
 
   /* Toast dismiss */
   useEffect(() => {
@@ -256,6 +269,10 @@ export default function App() {
   }, []);
 
   const switchRole = (next) => {
+    if (next === "doula" && !session?.user) {
+      setToast("Doula login required to enter practice workspace");
+      return;
+    }
     setRole(next);
     setOpenClient(null);
     setOpenForm(null);
@@ -398,23 +415,30 @@ export default function App() {
           )}
 
           {role === "client" && client && (
-            <div className="client-picker-wrap">
-              <select
-                className="mini client-select"
-                aria-label="Viewing as client"
-                value={client.id}
-                onChange={(e) => {
-                  setPortalClient(e.target.value);
-                  setOpenForm(null);
-                }}
-              >
-                {db.clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            session?.user ? (
+              <div className="client-picker-wrap">
+                <select
+                  className="mini client-select"
+                  aria-label="Preview client portal as"
+                  value={client.id}
+                  onChange={(e) => {
+                    setPortalClient(e.target.value);
+                    setOpenForm(null);
+                  }}
+                >
+                  {db.clients.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      Preview: {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div className="top-account-badge" title="Authenticated Patient Portal">
+                <span className="top-account-dot"></span>
+                <span>Patient Care Space: {client.name}</span>
+              </div>
+            )
           )}
 
           {role === "doula" && (
@@ -439,22 +463,24 @@ export default function App() {
             </div>
           )}
 
-          <div className="seg app-seg">
-            <button
-              type="button"
-              className={role === "doula" ? "on" : ""}
-              onClick={() => switchRole("doula")}
-            >
-              Doula
-            </button>
-            <button
-              type="button"
-              className={role === "client" ? "on" : ""}
-              onClick={() => switchRole("client")}
-            >
-              Client
-            </button>
-          </div>
+          {session?.user && (
+            <div className="seg app-seg">
+              <button
+                type="button"
+                className={role === "doula" ? "on" : ""}
+                onClick={() => switchRole("doula")}
+              >
+                Doula
+              </button>
+              <button
+                type="button"
+                className={role === "client" ? "on" : ""}
+                onClick={() => switchRole("client")}
+              >
+                Client
+              </button>
+            </div>
+          )}
 
           {session?.user ? (
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -787,7 +813,7 @@ export default function App() {
             </div>
 
             <div className="mobile-sheet-grid">
-              {DOULA_MORE_MODULES.map((m) => {
+              {(role === "doula" ? DOULA_MORE_MODULES : CLIENT_NAV_ITEMS).map((m) => {
                 const Icon = m.icon;
                 const isCurrent = tab === m.key;
                 return (
@@ -798,6 +824,7 @@ export default function App() {
                     onClick={() => {
                       setTab(m.key);
                       setMobileMoreOpen(false);
+                      if (m.key === "clients") setOpenClient(null);
                     }}
                   >
                     <div className="sheet-item-icon">
@@ -805,7 +832,7 @@ export default function App() {
                     </div>
                     <div className="sheet-item-text">
                       <b>{m.label}</b>
-                      <span>{m.desc}</span>
+                      <span>{m.desc || "Personal care space"}</span>
                     </div>
                     <IconChevronRight size={16} className="sheet-item-arrow" />
                   </button>

@@ -95,7 +95,11 @@ CREATE INDEX IF NOT EXISTS idx_billing_tracker_client_id ON public.billing_track
 
 -- 4. Automatic Doula Profile creation trigger on auth.users sign-up
 CREATE OR REPLACE FUNCTION public.handle_new_doula_user()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER 
+LANGUAGE plpgsql 
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
 BEGIN
     INSERT INTO public.doulas (id, email, business_name)
     VALUES (
@@ -107,7 +111,7 @@ BEGIN
     SET email = EXCLUDED.email;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
@@ -239,9 +243,13 @@ CREATE POLICY "Doulas can manage billing records of their clients"
 --    interact with ONLY their own records without an auth user account.
 -- ============================================================================
 
--- 6.1 Get Client Portal Data by Access Token
+-- 6.1 Get Client Portal Data by Access Token (Hardened Search Path)
 CREATE OR REPLACE FUNCTION public.get_client_portal(p_token TEXT)
-RETURNS JSONB AS $$
+RETURNS JSONB 
+LANGUAGE plpgsql 
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
 DECLARE
     v_client RECORD;
     v_doula RECORD;
@@ -306,9 +314,9 @@ BEGIN
         'invoices', v_invoices
     );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
--- 6.2 Submit Client Document
+-- 6.2 Submit Client Document (Hardened Search Path)
 CREATE OR REPLACE FUNCTION public.submit_client_doc(
     p_token TEXT,
     p_doc_id UUID,
@@ -316,7 +324,11 @@ CREATE OR REPLACE FUNCTION public.submit_client_doc(
     p_signed_name TEXT DEFAULT NULL,
     p_file_url TEXT DEFAULT NULL
 )
-RETURNS JSONB AS $$
+RETURNS JSONB 
+LANGUAGE plpgsql 
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
 DECLARE
     v_client_id UUID;
     v_new_status TEXT;
@@ -353,16 +365,20 @@ BEGIN
 
     RETURN jsonb_build_object('success', true, 'status', v_new_status);
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
--- 6.3 Book an Appointment Slot as Client
+-- 6.3 Book an Appointment Slot as Client (Hardened Search Path)
 CREATE OR REPLACE FUNCTION public.book_client_slot(
     p_token TEXT,
     p_slot_time TIMESTAMPTZ,
     p_type TEXT,
     p_notes TEXT DEFAULT ''
 )
-RETURNS JSONB AS $$
+RETURNS JSONB 
+LANGUAGE plpgsql 
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
 DECLARE
     v_client RECORD;
     v_booking_id UUID;
@@ -386,7 +402,11 @@ BEGIN
         'client_name', v_client.name
     );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
--- 7. Storage Bucket setup instruction note:
--- Run in Storage: Create a bucket named "doula-documents" with public or authenticated read policies.
+-- 7. Storage Bucket Security for Protected Medical Health Information (PHI):
+-- In Supabase Storage Settings:
+-- 1. Create a PRIVATE bucket named "doula-documents" (public = false).
+-- 2. Restrict direct public access; only authenticated doulas and token-verified clients
+--    can download documents via signed URLs with short 5-minute expiry (createSignedUrl).
+

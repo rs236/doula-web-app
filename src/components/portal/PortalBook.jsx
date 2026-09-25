@@ -55,8 +55,13 @@ export default function PortalBook({ db, up, c, toast, doula = {} }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           to: c.email,
-          subject: `Visit Confirmed: ${visitDetails}`,
-          text: `Hi ${c.name},\n\nYour visit has been confirmed:\n${visitDetails}\n\nWe look forward to supporting you!\n— ${doula.business_name || "Your Doula"}`,
+          portalToken: token,
+          template: "visit_confirmed",
+          params: {
+            clientName: c.name,
+            doulaName: doula.business_name || "Your Doula",
+            details: visitDetails,
+          },
         }),
       }).catch((e) => console.log("Email dispatch skipped:", e));
     }
@@ -68,6 +73,8 @@ export default function PortalBook({ db, up, c, toast, doula = {} }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           to: doula.email,
+          portalToken: token,
+          template: "custom",
           subject: `New Client Booking: ${c.name} - ${visitDetails}`,
           text: `Great news! ${c.name} has booked an appointment:\n\n${visitDetails}\nClient contact: ${c.phone || c.email || "See portal"}`,
         }),

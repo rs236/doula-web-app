@@ -147,30 +147,28 @@ export default function LoginPage({
     }
   };
 
-  /* Client Portal Magic Access */
+  /* Client Portal Magic Access (Strict Cryptographic Token Only) */
   const handleClientAccess = (e) => {
     e?.preventDefault();
     clearFeedback();
 
     const query = clientToken.trim().toLowerCase();
-    if (!query) {
-      setError("Please enter your client access token or email address.");
+    if (!query || query.length < 8) {
+      setError("Please enter your private client access token.");
       return;
     }
 
     const match = clients.find(
       (c) =>
         (c.access_token && c.access_token.toLowerCase() === query) ||
-        (c.accessToken && c.accessToken.toLowerCase() === query) ||
-        (c.id && c.id.toLowerCase() === query) ||
-        (c.email && c.email.toLowerCase() === query)
+        (c.accessToken && c.accessToken.toLowerCase() === query)
     );
 
     if (match) {
       onClientPortalLogin(match);
     } else {
       setError(
-        "No active client care record found matching that code or email. Please check with your doula."
+        "Invalid access token. Please check the secret portal link provided by your doula."
       );
     }
   };
@@ -552,18 +550,18 @@ export default function LoginPage({
 
             <form onSubmit={handleClientAccess} className="login-form">
               <div className="login-field">
-                <label>Client Access Token or Email</label>
+                <label>Private Client Access Token</label>
                 <div className="neu-input-wrap">
                   <input
                     type="text"
-                    placeholder="e.g. tok_maya_2026 or maya@example.com"
+                    placeholder="e.g. tok_2a8f9c1b... (from your welcome link)"
                     value={clientToken}
                     onChange={(e) => setClientToken(e.target.value)}
                     required
                   />
                 </div>
                 <span className="login-field-help">
-                  Provided by your doula via WhatsApp, SMS, or email confirmation.
+                  Found in your confidential onboarding email or WhatsApp invite from your doula.
                 </span>
               </div>
 

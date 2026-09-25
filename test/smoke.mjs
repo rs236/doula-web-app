@@ -410,6 +410,43 @@ if (signoutBtn) {
   }
 }
 
+/* 19. Enterprise Security Hardening Verifications */
+const { secureToken, uid } = await import("../src/lib/date.js");
+const t1 = secureToken();
+const t2 = secureToken();
+check("19a. Cryptographic token format (tok_...)", t1.startsWith("tok_") && t1.length >= 32);
+check("19b. High entropy tokens unique", t1 !== t2);
+
+// Test Webhook Fail-Closed Behavior (Missing Signature Header)
+const { default: webhookHandler } = await import("../api/payment-webhook.js");
+let webhookStatus = 0;
+const mockWebhookRes = {
+  status: (s) => {
+    webhookStatus = s;
+    return { json: () => {} };
+  },
+};
+await webhookHandler(
+  { method: "POST", headers: {}, body: { event: "payment_link.paid" } },
+  mockWebhookRes
+);
+check("19c. Webhook fails closed (401 on missing signature)", webhookStatus === 401);
+
+// Test Email Open-Relay Protection (Invalid Recipient Rejected)
+const { default: emailHandler } = await import("../api/send-email.js");
+let emailStatus = 0;
+const mockEmailRes = {
+  status: (s) => {
+    emailStatus = s;
+    return { json: () => {} };
+  },
+};
+await emailHandler(
+  { method: "POST", headers: {}, body: { to: "invalid-address", text: "spam" } },
+  mockEmailRes
+);
+check("19d. Email endpoint rejects invalid recipient format", emailStatus === 400);
+
 /* 17. no application console errors */
 const appErrors = errors.filter((e) => !/not wrapped in act/i.test(e));
 check("17. No console errors", appErrors.length === 0, appErrors.slice(0, 3).join(" | "));

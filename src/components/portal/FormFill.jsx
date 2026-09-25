@@ -94,10 +94,12 @@ export default function FormFill({ up, a, form, back, toast, clientName = "Clien
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             to: doulaEmail,
-            subject: `Document Completed: ${form.title} from ${clientName}`,
-            text: `${clientName} has submitted ${form.title} on ${new Date().toLocaleDateString()}.${
-              isSigned ? ` Digitally signed by ${signedName}.` : ""
-            }`,
+            portalToken: portalToken || c?.access_token || c?.accessToken,
+            template: "document_completed",
+            params: {
+              clientName,
+              formTitle: form.title,
+            },
           }),
         }).catch((e) => console.log("Email notify skipped:", e));
       } catch (e) {
