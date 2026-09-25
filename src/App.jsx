@@ -45,6 +45,10 @@ import Money from "./components/doula/Money.jsx";
 import Backup from "./components/doula/Backup.jsx";
 import Mileage from "./components/doula/Mileage.jsx";
 import Settings from "./components/doula/Settings.jsx";
+import ComplianceDashboard from "./components/doula/ComplianceDashboard.jsx";
+import LegalCenter from "./components/compliance/LegalCenter.jsx";
+import DataRequestPortal from "./components/compliance/DataRequestPortal.jsx";
+import CookieConsentBanner from "./components/compliance/CookieConsentBanner.jsx";
 import { TransitionPanel } from "./components/motion/MotionPrimitives.jsx";
 
 import PortalHome from "./components/portal/PortalHome.jsx";
@@ -82,6 +86,12 @@ const DOULA_SECTIONS = [
     ],
   },
   {
+    title: "Governance",
+    items: [
+      { key: "compliance", label: "Compliance & Trust", icon: IconSign },
+    ],
+  },
+  {
     title: "System",
     items: [
       { key: "settings", label: "Settings", icon: IconSettings },
@@ -115,11 +125,16 @@ const DOULA_MORE_MODULES = [
   { key: "money", label: "Payments", icon: IconPayments, desc: "Installments & milestones" },
   { key: "backup", label: "Backup Cover", icon: IconBackup, desc: "Doula coverage & handoffs" },
   { key: "mileage", label: "Mileage", icon: IconMileage, desc: "Trip & tax expense log" },
+  { key: "compliance", label: "Compliance & Trust", icon: IconSign, desc: "ROPA, consents & security" },
   { key: "settings", label: "Settings", icon: IconSettings, desc: "Practice info & backups" },
 ];
 
 const validTab = (role, tab) =>
-  (role === "doula" ? DOULA_NAV : CLIENT_NAV).some(([k]) => k === tab);
+  (role === "doula" ? DOULA_NAV : CLIENT_NAV).some(([k]) => k === tab) ||
+  tab === "compliance" ||
+  tab === "trust-center" ||
+  tab === "data-request" ||
+  (typeof tab === "string" && tab.startsWith("legal-"));
 
 export default function App() {
   const [db, setDb] = useState(null);
@@ -201,6 +216,19 @@ export default function App() {
   /* Synchronize URL hash with active view */
   useEffect(() => {
     if (!db) return;
+    if (typeof tab === "string" && tab.startsWith("legal-")) {
+      const slug = tab.replace("legal-", "");
+      window.location.hash = `/legal/${slug}`;
+      return;
+    }
+    if (tab === "trust-center") {
+      window.location.hash = "/trust-center";
+      return;
+    }
+    if (tab === "data-request") {
+      window.location.hash = "/data-request";
+      return;
+    }
     if (role === "client" && portalClient) {
       const c = db.clients.find((x) => x.id === portalClient);
       const token = c?.access_token || c?.accessToken || portalClient;
@@ -214,7 +242,7 @@ export default function App() {
 
   useEffect(() => {
     const onHash = () => {
-      const h = window.location.hash.replace("#/", "");
+      const h = window.location.hash.replace(/^#\/?/, "");
       if (h.startsWith("portal/")) {
         const token = h.split("/")[1];
         if (db) {
@@ -225,6 +253,19 @@ export default function App() {
         }
         setRole("client");
         setTab("p-home");
+        return;
+      }
+      if (h === "trust-center") {
+        setTab("trust-center");
+        return;
+      }
+      if (h.startsWith("legal/") || h.startsWith("legal-")) {
+        const slug = h.startsWith("legal/") ? h.replace("legal/", "") : h.replace("legal-", "");
+        setTab(`legal-${slug}`);
+        return;
+      }
+      if (h === "data-request") {
+        setTab("data-request");
         return;
       }
       if (h && h !== tab) {
@@ -581,11 +622,41 @@ export default function App() {
               })}
             </div>
           )}
+
+          {/* Sidebar Trust & Legal Navigation */}
+          <div className="rail-footer-links" style={{ marginTop: "auto", paddingTop: "18px", borderTop: "1px solid rgba(0,0,0,0.06)", display: "flex", flexDirection: "column", gap: "6px" }}>
+            <button
+              type="button"
+              className={"navitem" + (tab === "trust-center" || (typeof tab === "string" && tab.startsWith("legal-")) ? " active" : "")}
+              onClick={() => setTab("trust-center")}
+            >
+              <div className="navitem-main">
+                <span style={{ fontSize: "14px", width: "16px", textAlign: "center" }}>🛡️</span>
+                <span>Trust & Legal Hub</span>
+              </div>
+            </button>
+            <button
+              type="button"
+              className={"navitem" + (tab === "data-request" ? " active" : "")}
+              onClick={() => setTab("data-request")}
+            >
+              <div className="navitem-main">
+                <span style={{ fontSize: "14px", width: "16px", textAlign: "center" }}>📦</span>
+                <span>Data Rights (DSAR)</span>
+              </div>
+            </button>
+          </div>
         </nav>
 
         {/* Main Content Area */}
         <main className="canvas app-canvas">
-          <TransitionPanel activeKey={`${role}-${tab}`}>
+          <TransitionPanel
+            activeKey={
+              tab === "trust-center" || (typeof tab === "string" && tab.startsWith("legal-"))
+                ? `${role}-legal`
+                : `${role}-${tab}`
+            }
+          >
             {/* Module 1: CRM */}
             {role === "doula" && tab === "clients" && (
               <Clients
@@ -645,6 +716,27 @@ export default function App() {
             )}
             {role === "doula" && tab === "settings" && (
               <Settings db={db} up={up} toast={setToast} onReset={() => setDb(seed())} />
+            )}
+            {role === "doula" && tab === "compliance" && (
+              <ComplianceDashboard db={db} up={up} toast={setToast} />
+            )}
+
+            {/* Governance, Trust & Compliance Views */}
+            {(tab === "trust-center" || (typeof tab === "string" && tab.startsWith("legal-"))) && (
+              <LegalCenter
+                initialSlug={typeof tab === "string" && tab.startsWith("legal-") ? tab.replace("legal-", "") : "privacy"}
+                onBack={() => setTab(role === "client" ? "p-home" : "today")}
+                onOpenDsar={() => setTab("data-request")}
+              />
+            )}
+            {tab === "data-request" && (
+              <DataRequestPortal
+                db={db}
+                up={up}
+                toast={setToast}
+                activeClient={role === "client" ? client : null}
+                onBack={() => setTab(role === "client" ? "p-home" : "today")}
+              />
             )}
 
             {/* Client Portal Views */}
@@ -866,6 +958,9 @@ export default function App() {
           {toast}
         </div>
       )}
+
+      {/* Global Zero-Tracking Privacy & Cookie Consent System */}
+      <CookieConsentBanner />
     </div>
   );
 }

@@ -447,6 +447,77 @@ await emailHandler(
 );
 check("19d. Email endpoint rejects invalid recipient format", emailStatus === 400);
 
+/* 20. Regulatory Compliance, Legal Hub & Cookie Consent Verifications */
+// Verify Cookie Consent Banner mounts
+const cookieBanner = $(".cookie-banner-overlay");
+check("20a. Cookie consent banner mounts by default", !!cookieBanner);
+const acceptAllBtn = containing("button", "Accept All");
+if (acceptAllBtn) {
+  await click(acceptAllBtn);
+  check("20b. Cookie banner accepts consent and persists", !$(".cookie-banner-overlay"));
+}
+
+// Verify Compliance & Trust Dashboard
+const complianceNavBtn = containing(".navitem", "Compliance & Trust");
+check("20c. Compliance & Trust nav item exists", !!complianceNavBtn);
+if (complianceNavBtn) {
+  await click(complianceNavBtn);
+  check("20d. Compliance dashboard loads", !!containing("h1", "Compliance & Trust Dashboard"));
+  check("20e. Multi-Jurisdictional Audit Matrix present", !!containing("h2", "Regulatory Audit Matrix") || !!containing(".card", "Regulatory Audit Matrix"));
+
+  // Check sub-tabs
+  const consentsTab = containing(".neu-pill", "Client Consent Register");
+  if (consentsTab) {
+    await click(consentsTab);
+    check("20f. Consent register table renders", !!containing("h2", "Client Consent & Electronic Signature Log"));
+  }
+
+  const ropaTab = containing(".neu-pill", "ROPA Data Inventory");
+  if (ropaTab) {
+    await click(ropaTab);
+    check("20g. ROPA inventory table renders", !!containing("h2", "Record of Processing Activities"));
+  }
+
+  const subprocTab = containing(".neu-pill", "Subprocessors Directory");
+  if (subprocTab) {
+    await click(subprocTab);
+    check("20h. Subprocessor directory renders", !!containing("h2", "Authorized Subprocessor Registry"));
+  }
+}
+
+// Verify Trust & Legal Hub
+const trustHubBtn = containing(".navitem", "Trust & Legal Hub");
+check("20i. Trust & Legal Hub button present in sidebar", !!trustHubBtn);
+if (trustHubBtn) {
+  await click(trustHubBtn);
+  check("20j. Legal Center loads", !!$(".legal-center-container"));
+  check("20k. Privacy policy renders complete clauses", !!containing(".legal-title", "Comprehensive Privacy Policy"));
+
+  // Switch to Health Data & HIPAA policy
+  const hipaaDocBtn = containing(".legal-nav-item", "HIPAA");
+  if (hipaaDocBtn) {
+    await click(hipaaDocBtn);
+    await act(async () => {});
+    check("20l. HIPAA & Health Data guide loads", !!containing(".legal-title", "HIPAA") || !!containing(".policy-sec-title", "HIPAA"));
+  }
+
+  // Switch to Medical Disclaimer
+  const disclaimerBtn = containing(".legal-nav-item", "Medical & Doula Services Disclaimer");
+  if (disclaimerBtn) {
+    await click(disclaimerBtn);
+    check("20m. Medical disclaimer loads", !!containing(".legal-title", "Medical & Doula Services Disclaimer"));
+  }
+}
+
+// Verify DSAR Data Request Portal
+const dsarBtn = containing(".navitem", "Data Rights (DSAR)");
+check("20n. Data Rights (DSAR) button present", !!dsarBtn);
+if (dsarBtn) {
+  await click(dsarBtn);
+  check("20o. DSAR portal loads", !!containing("h1", "Data Subject & Principal Rights Portal"));
+  check("20p. Statutory export button present", !!containing("button", "Download Complete Client Archive"));
+}
+
 /* 17. no application console errors */
 const appErrors = errors.filter((e) => !/not wrapped in act/i.test(e));
 check("17. No console errors", appErrors.length === 0, appErrors.slice(0, 3).join(" | "));

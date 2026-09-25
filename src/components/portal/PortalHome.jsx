@@ -140,6 +140,20 @@ export default function PortalHome({ db, c, go }) {
           </button>
         </Card>
       </div>
+
+      {/* Client Care & Privacy Footer */}
+      <footer className="portal-client-footer" style={{ marginTop: 32, padding: "18px 22px", background: "rgba(0,0,0,0.02)", borderRadius: 16, border: "1px solid rgba(255,255,255,0.6)", fontSize: "12px", color: "var(--c-sub)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+        <div style={{ maxWidth: 540 }}>
+          <strong>🌿 Non-Clinical Doula Care Notice:</strong> Doula support provides physical, emotional, and informational care and does not constitute medical advice or diagnosis. For urgent health concerns or emergencies, contact your doctor/midwife or call emergency services (911/112).
+        </div>
+        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <a href="#/legal/medical-disclaimer" style={{ color: "var(--mauve)", textDecoration: "underline" }}>Medical Disclaimer</a>
+          <span>·</span>
+          <a href="#/legal/privacy" style={{ color: "var(--mauve)", textDecoration: "underline" }}>Privacy Rights</a>
+          <span>·</span>
+          <a href="#/data-request" style={{ color: "var(--mauve)", textDecoration: "underline" }}>Download My Records</a>
+        </div>
+      </footer>
     </>
   );
 }
