@@ -19,7 +19,18 @@ global.MouseEvent = dom.window.MouseEvent;
 global.getComputedStyle = dom.window.getComputedStyle;
 global.requestAnimationFrame = (cb) => setTimeout(cb, 0);
 global.cancelAnimationFrame = clearTimeout;
+global.localStorage = dom.window.localStorage;
 global.IS_REACT_ACT_ENVIRONMENT = true;
+dom.window.localStorage.setItem(
+  "msc_session",
+  JSON.stringify({
+    user: {
+      id: "test-doula-id",
+      email: "doula@maternalsupport.co",
+      user_metadata: { business_name: "Sage Doula Practice" },
+    },
+  })
+);
 
 const errors = [];
 const origErr = console.error;
@@ -382,6 +393,22 @@ await click(containing(".navitem", "Clients"));
 check("16b. Data survives reload", $(".canvas").textContent.includes("Test Mother"));
 await click(containing(".navitem", "Mileage"));
 check("16c. Logged trip survives reload", $(".canvas").textContent.includes("12 km"));
+
+/* 18. Sign out flow and LoginPage verification */
+const signoutBtn = byText(".ghost", "Sign out") || containing(".ghost", "Sign out");
+check("18a. Sign out button present in header", !!signoutBtn);
+if (signoutBtn) {
+  await click(signoutBtn);
+  check("18b. LoginPage renders after sign out", !!$(".login-card-container"));
+  check("18c. Doula Sign In tab present", !!byText(".login-tab", "Doula Sign In"));
+  check("18d. Client Portal tab present", !!byText(".login-tab", "Client Portal"));
+  const demoDoulaBtn = $(".login-demo-btn.doula-demo");
+  check("18e. 1-Click Demo Doula button present", !!demoDoulaBtn);
+  if (demoDoulaBtn) {
+    await click(demoDoulaBtn);
+    check("18f. Re-entered workspace via 1-Click Demo", !!$(".canvas"));
+  }
+}
 
 /* 17. no application console errors */
 const appErrors = errors.filter((e) => !/not wrapped in act/i.test(e));

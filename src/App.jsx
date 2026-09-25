@@ -30,7 +30,7 @@ import {
   IconChevronRight
 } from "./components/icons.jsx";
 
-import AuthModal from "./components/auth/AuthModal.jsx";
+import LoginPage from "./components/auth/LoginPage.jsx";
 import Today from "./components/doula/Today.jsx";
 import OnCall from "./components/doula/OnCall.jsx";
 import Clients from "./components/doula/Clients.jsx";
@@ -134,10 +134,16 @@ export default function App() {
   // Mobile navigation drawer state
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
 
-  // Supabase Auth session state
-  const [session, setSession] = useState(null);
+  // Auth session state (supports Supabase + persistent demo/local sessions)
+  const [session, setSession] = useState(() => {
+    try {
+      const saved = localStorage.getItem("msc_session");
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return null;
+  });
   const [authChecked, setAuthChecked] = useState(false);
-  const [authSkipped, setAuthSkipped] = useState(!isSupabaseConfigured);
+  const [authSkipped, setAuthSkipped] = useState(false);
 
   /* Initialize DB & Auth */
   useEffect(() => {
@@ -258,11 +264,16 @@ export default function App() {
   };
 
   const handleSignOut = async () => {
+    try {
+      localStorage.removeItem("msc_session");
+    } catch (e) {}
     if (isSupabaseConfigured && supabase) {
       await supabase.auth.signOut();
     }
     setSession(null);
     setAuthSkipped(false);
+    setRole("doula");
+    setTab("today");
     setToast("Signed out successfully");
   };
 
@@ -274,18 +285,61 @@ export default function App() {
     );
   }
 
-  // Show AuthModal if doula is not authenticated and hasn't chosen local preview
+  // Show LoginPage if doula is not authenticated and hasn't chosen local preview
   const isDoulaUnauthenticated = role === "doula" && !session && !authSkipped;
   if (isDoulaUnauthenticated) {
     return (
       <div className="msc">
-        <AuthModal
-          onAuthSuccess={(user) => {
+        <LoginPage
+          clients={db.clients || []}
+          currentCurrency={db.currency || "USD"}
+          onSelectCurrency={(c) => up({ currency: c })}
+          onDoulaAuthSuccess={(user, remember) => {
             setSession({ user });
-            setToast("Welcome to MaternalSupportCo Hub");
+            if (remember) {
+              try {
+                localStorage.setItem("msc_session", JSON.stringify({ user }));
+              } catch (e) {}
+            }
+            setToast(`Welcome back, ${user.user_metadata?.full_name || user.email}!`);
           }}
-          onSkipToLocal={() => setAuthSkipped(true)}
+          onExploreDemoDoula={() => {
+            const demoUser = {
+              id: "demo-doula",
+              email: "doula@maternalsupport.co",
+              user_metadata: {
+                full_name: "Maya Thorne, CD",
+                business_name: "Sage Birth & Postpartum",
+              },
+            };
+            setSession({ user: demoUser });
+            try {
+              localStorage.setItem("msc_session", JSON.stringify({ user: demoUser }));
+            } catch (e) {}
+            setToast("Logged in as Sage Doula Demo");
+          }}
+          onExploreDemoClient={() => {
+            setRole("client");
+            if (db.clients && db.clients[0]) {
+              setPortalClient(db.clients[0].id);
+            }
+            setTab("p-home");
+            setAuthSkipped(true);
+            setToast("Viewing Maya Lin's Client Care Portal");
+          }}
+          onClientPortalLogin={(matchedClient) => {
+            setRole("client");
+            setPortalClient(matchedClient.id);
+            setTab("p-home");
+            setAuthSkipped(true);
+            setToast(`Welcome to your Care Portal, ${matchedClient.name}!`);
+          }}
         />
+        {toast && (
+          <div className="toast" role="status">
+            {toast}
+          </div>
+        )}
       </div>
     );
   }
@@ -402,15 +456,39 @@ export default function App() {
             </button>
           </div>
 
-          {session?.user && (
+          {session?.user ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div
+                className="top-account-badge desktop-only"
+                title={session.user.email}
+              >
+                <span className="top-account-dot"></span>
+                <span>
+                  {session.user.user_metadata?.business_name ||
+                    session.user.user_metadata?.full_name ||
+                    session.user.email?.split("@")[0] ||
+                    "Connected"}
+                </span>
+              </div>
+              <button
+                type="button"
+                className="ghost icon-btn desktop-only"
+                title="Sign out of practice"
+                onClick={handleSignOut}
+              >
+                <IconLogOut size={13} style={{ marginRight: 4 }} />
+                Sign out
+              </button>
+            </div>
+          ) : (
             <button
               type="button"
               className="ghost icon-btn desktop-only"
-              title="Sign out"
+              title="Sign out to Login"
               onClick={handleSignOut}
             >
               <IconLogOut size={13} style={{ marginRight: 4 }} />
-              Sign out
+              {role === "client" ? "Exit Portal" : "Sign Out"}
             </button>
           )}
         </div>
@@ -735,21 +813,23 @@ export default function App() {
               })}
             </div>
 
-            {session?.user && (
-              <div className="mobile-sheet-foot">
-                <button
-                  type="button"
-                  className="ghost wide danger-outline"
-                  onClick={() => {
-                    handleSignOut();
-                    setMobileMoreOpen(false);
-                  }}
-                >
-                  <IconLogOut size={14} style={{ marginRight: 6 }} />
-                  Sign Out ({session.user.email})
-                </button>
-              </div>
-            )}
+            <div className="mobile-sheet-foot">
+              <button
+                type="button"
+                className="ghost wide danger-outline"
+                onClick={() => {
+                  handleSignOut();
+                  setMobileMoreOpen(false);
+                }}
+              >
+                <IconLogOut size={14} style={{ marginRight: 6 }} />
+                {session?.user
+                  ? `Sign Out (${session.user.email})`
+                  : role === "client"
+                  ? "Exit Client Portal"
+                  : "Sign Out to Login"}
+              </button>
+            </div>
           </div>
         </div>
       )}
